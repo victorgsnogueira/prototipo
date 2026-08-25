@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ratio — protótipo</title>
+<meta name="description" content="Protótipo de interface para um Data Warehouse jurídico: busca de teses, painel de consolidação e assistente.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400..700;1,8..60,400..500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+
+<div class="selo-proto">Protótipo <b>·</b> dados fictícios <b>·</b> nenhum julgado real</div>
+
+<!-- ================================================================
+     TELA 1 — busca
+     ============================================================= -->
+<main class="tela" id="tela-busca" data-ativa>
+  <div class="manto" aria-hidden="true"></div>
+  <div class="folha capa">
+    <div class="capa-grade">
+      <div>
+        <h1 class="marca">Rat<i>i</i>o</h1>
+        <p class="marca-sub">Teses jurídicas extraídas de decisões judiciais — busque pelo que você quer sustentar, não pelo número do processo.</p>
+
+        <form class="campo" id="form-busca">
+          <label class="rotulo" for="q">Consulta</label>
+          <div class="campo-linha">
+            <input id="q" name="q" type="search" autocomplete="off" placeholder="atraso de voo, horas extras, ICMS na base do PIS…">
+            <button class="btn-buscar" type="submit">Buscar</button>
+          </div>
+        </form>
+
+        <div class="sugestoes">
+          <span class="rotulo">Consultas frequentes</span>
+          <ul id="sugestoes"></ul>
+        </div>
+      </div>
+
+      <div class="capa-numeros">
+        <dl id="capa-numeros"></dl>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ================================================================
+     TELA 2 — resultados
+     ============================================================= -->
+<main class="tela" id="tela-resultados">
+  <div class="barra">
+    <div class="barra-i">
+      <button class="marca-mini" type="button" data-ir-inicio>Rat<i>i</i>o</button>
+      <form class="barra-campo" id="form-busca-2">
+        <input id="q2" name="q" type="search" autocomplete="off" aria-label="Buscar teses">
+        <button type="submit">Buscar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="folha">
+    <div class="res-cabeca">
+      <h1 id="res-resumo"></h1>
+      <span class="rotulo">Ordenado por força</span>
+    </div>
+    <ul class="lista-teses" id="lista-teses"></ul>
+  </div>
+</main>
+
+<!-- ================================================================
+     TELA 3 — tese
+     ============================================================= -->
+<main class="tela" id="tela-tese">
+  <div class="barra">
+    <div class="barra-i">
+      <button class="marca-mini" type="button" data-ir-inicio>Rat<i>i</i>o</button>
+      <form class="barra-campo" id="form-busca-3">
+        <input id="q3" name="q" type="search" autocomplete="off" aria-label="Buscar teses">
+        <button type="submit">Buscar</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="folha tese" id="tese"></div>
+</main>
+
+<!-- ================================================================
+     Chat
+     ============================================================= -->
+<button class="chat-abre" id="chat-abre" type="button" aria-label="Abrir assistente" aria-expanded="false" aria-controls="chat">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+    <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9.5 9.5 0 0 1-3.2-.5L3 21l1.7-4.6A8.2 8.2 0 0 1 3.6 11.5 8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4Z"/>
+    <circle cx="12" cy="11.5" r="3.1"/>
+  </svg>
+</button>
+
+<aside class="chat" id="chat" aria-label="Assistente Ratio">
+  <div class="chat-cabeca">
+    <div>
+      <strong>Assistente</strong>
+      <span class="rotulo" id="chat-contexto"></span>
+    </div>
+    <button class="chat-fecha" id="chat-fecha" type="button">Fechar</button>
+  </div>
+  <div class="chat-fluxo" id="chat-fluxo"></div>
+  <div class="chat-pe">
+    <div class="chat-sugere" id="chat-sugere"></div>
+    <form class="chat-campo" id="chat-form">
+      <input id="chat-input" type="text" autocomplete="off" placeholder="Pergunte sobre esta tese…" aria-label="Mensagem para o assistente">
+      <button type="submit">Enviar</button>
+    </form>
+  </div>
+</aside>
+
+<div class="dica" id="dica" role="status" aria-live="polite"></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
