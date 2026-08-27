@@ -1,0 +1,30 @@
+name: ratio
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ratio-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ratio}
+      POSTGRES_USER: ${POSTGRES_USER:-ratio}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ratio}
+      # Locale pt-BR: faz ORDER BY respeitar acento na ordenação de temas.
+      LANG: pt_BR.utf8
+    # 5433 no host de propósito: não conflita com um Postgres que já exista
+    # na máquina do dev nem na VPS.
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Migrations rodam em ordem alfabética na PRIMEIRA subida do volume.
+      # Para reaplicar depois de mudar o esquema: docker compose down -v
+      - ./db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ratio} -d ${POSTGRES_DB:-ratio}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgdata:
