@@ -53,6 +53,24 @@ def _texto(v: Any) -> str | None:
     return str(v) if v is not None else None
 
 
+def _objeto(v: Any) -> dict[str, Any]:
+    """Normaliza um campo que deveria ser objeto.
+
+    Os 91 tribunais não são consistentes na forma que publicam: o mesmo campo
+    chega como objeto na maioria e, em alguns documentos, como lista de um
+    elemento. Foi assim que o TJ-MG derrubou a primeira carga com
+    "'list' object has no attribute 'get'". Aceitar as duas formas é mais
+    barato do que descartar o documento.
+    """
+    if isinstance(v, dict):
+        return v
+    if isinstance(v, list):
+        for item in v:
+            if isinstance(item, dict):
+                return item
+    return {}
+
+
 def achatar(fonte: dict[str, Any]) -> Processo | None:
     """Converte o _source cru do Elasticsearch no nosso formato.
 
@@ -63,15 +81,19 @@ def achatar(fonte: dict[str, Any]) -> Processo | None:
     if not numero:
         return None
 
-    classe = fonte.get("classe") or {}
-    orgao = fonte.get("orgaoJulgador") or {}
+    classe = _objeto(fonte.get("classe"))
+    orgao = _objeto(fonte.get("orgaoJulgador"))
 
     assuntos: list[tuple[int, str]] = []
-    for a in fonte.get("assuntos") or []:
+    for bruto in fonte.get("assuntos") or []:
+        a = _objeto(bruto)          # item de assunto às vezes vem aninhado em lista
         cod, nome = a.get("codigo"), a.get("nome")
         # Assunto sem nome vira tema sem rótulo na interface; descartamos.
         if cod is not None and nome:
-            assuntos.append((int(cod), nome.strip()))
+            try:
+                assuntos.append((int(cod), str(nome).strip()))
+            except (TypeError, ValueError):
+                continue
 
     return Processo(
         numero=str(numero),
@@ -82,7 +104,7 @@ def achatar(fonte: dict[str, Any]) -> Processo | None:
         orgao_codigo=_texto(orgao.get("codigo")),
         orgao_nome=orgao.get("nome"),
         municipio_ibge=orgao.get("codigoMunicipioIBGE"),
-        data_ajuizamento=fonte.get("dataAjuizamento"),
+        data_ajuizamento=_texto(fonte.get("dataAjuizamento")),
         nivel_sigilo=int(fonte.get("nivelSigilo") or 0),
         assuntos=assuntos,
         movimentos=fonte.get("movimentos") or [],

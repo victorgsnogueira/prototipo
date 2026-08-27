@@ -51,9 +51,17 @@ def _limite() -> int:
 
 # ------------------------------------------------------------------ parsers
 
-def data_ajuizamento(bruto: str | None) -> date | None:
-    """'20250312134505' -> date(2025, 3, 12). Formato próprio do DataJud."""
-    if not bruto or len(bruto) < 8:
+def data_ajuizamento(bruto: object) -> date | None:
+    """'20250312134505' -> date(2025, 3, 12). Formato próprio do DataJud.
+
+    Aceita int além de str: parte dos tribunais publica o campo como número
+    (foi o que quebrou a primeira carga do TJ-MG com "object of type 'int'
+    has no len()"). Coagimos antes de medir em vez de confiar no tipo.
+    """
+    if bruto is None:
+        return None
+    bruto = str(bruto)
+    if len(bruto) < 8:
         return None
     try:
         return date(int(bruto[0:4]), int(bruto[4:6]), int(bruto[6:8]))
