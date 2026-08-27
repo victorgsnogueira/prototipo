@@ -26,5 +26,20 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build: .
+    container_name: ratio-api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ratio}:${POSTGRES_PASSWORD:-ratio}@db:5432/${POSTGRES_DB:-ratio}
+      CORS_ORIGENS: ${CORS_ORIGENS:-http://localhost:5500,http://127.0.0.1:5500}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    # Só sobe depois do banco responder, senão o pool falha no primeiro
+    # request e o container reinicia em laço.
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   pgdata:
