@@ -19,10 +19,6 @@
 
   function pct(parte, total) { return total ? Math.round((parte / total) * 100) : 0; }
 
-  function semAcento(s) {
-    return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  }
-
   /* Classificacao da forca - vocabulario que ja existe no meio juridico. */
   function grau(f) {
     if (f >= 90) return 'Consolidada';
@@ -143,7 +139,7 @@
     return '<figure class="painel">' +
       '<div class="painel-cabeca"><h3>Decisões por ano</h3>' + legenda() + '</div>' +
       '<figcaption class="painel-nota">Volume anual de decisões que discutiram a tese, separadas pelo resultado. ' +
-      'O período de ' + t.periodo.split(' - ')[1] + ' está incompleto.</figcaption>' +
+      'O ano mais recente pode estar incompleto.</figcaption>' +
       '<svg class="grafico" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Decisões por ano, favoráveis e contrárias à tese">' + s + '</svg>' +
       '<button class="btn-tabela" type="button" data-tabela>Ver tabela</button>' +
       '<div hidden data-alvo-tabela>' + tabela + '</div>' +
@@ -197,28 +193,36 @@
 
   /* ---- tela 1 ---- */
 
-  function montarCapa() {
-    $('#capa-numeros').innerHTML =
-      '<dt class="rotulo">Teses mapeadas</dt><dd>' + num(BASE.teses) + '</dd>' +
-      '<dt class="rotulo">Processos na base</dt><dd>' + num(BASE.processos) + '</dd>' +
-      '<dt class="rotulo">Tribunais</dt><dd>' + BASE.tribunais + '</dd>';
+  /* Exemplos de consulta. Ficam no front porque são convite de navegação,
+     não dado — o que a busca devolve vem todo da API. */
+  var EXEMPLOS = ['dano moral', 'rescisão de contrato', 'IPTU', 'execução fiscal', 'tutela'];
 
-    $('#sugestoes').innerHTML = SUGESTOES_BUSCA.map(function (s) {
+  function montarCapa() {
+    $('#sugestoes').innerHTML = EXEMPLOS.map(function (s) {
       return '<li><button class="sugestao" type="button" data-q="' + esc(s) + '">' + esc(s) + '</button></li>';
     }).join('');
+
+    /* Os números da capa são do DW real; enquanto não chegam, a capa não
+       mente com placeholder — mostra traço. */
+    $('#capa-numeros').innerHTML =
+      '<dt class="rotulo">Temas com julgamento</dt><dd>—</dd>' +
+      '<dt class="rotulo">Fonte</dt><dd class="dado-menor">DataJud/CNJ</dd>';
+
+    Api.base().then(function (b) {
+      $('#capa-numeros').innerHTML =
+        '<dt class="rotulo">Temas com julgamento</dt><dd>' + num(b.temas_com_julgamento) + '</dd>' +
+        '<dt class="rotulo">Fonte</dt><dd class="dado-menor">DataJud/CNJ</dd>';
+    }).catch(function () {
+      $('#capa-numeros').innerHTML =
+        '<dt class="rotulo">Base</dt><dd class="dado-menor">API indisponível</dd>';
+    });
   }
 
   /* ---- tela 2 ---- */
 
-  function buscar(q) {
-    var termo = semAcento(q.trim());
-    if (!termo) return TESES.slice();
-    var palavras = termo.split(/\s+/);
-    return TESES.filter(function (t) {
-      var alvo = semAcento([t.enunciado, t.resumo, t.area, t.id, t.tribunais.join(' ')].join(' '));
-      return palavras.some(function (p) { return p.length > 2 && alvo.indexOf(p) !== -1; });
-    });
-  }
+  /* A busca é do servidor: full-text em português com unaccent e trigrama,
+     no Postgres. Filtrar no cliente só funcionaria sobre o que já foi
+     baixado — e a base tem mais tema do que cabe numa página. */
 
   function cartao(t) {
     return '<li><article class="cartao" data-tese="' + t.id + '">' +
@@ -245,50 +249,85 @@
   }
 
   function montarResultados(q) {
-    var achados = buscar(q).sort(function (a, b) { return b.forca - a.forca; });
     $('#q2').value = q;
     $('#q3').value = q;
+    $('#res-resumo').innerHTML = 'Consultando…';
+    $('#lista-teses').innerHTML = '';
 
-    if (!achados.length) {
-      $('#res-resumo').innerHTML = 'Nenhuma tese para <b>' + esc(q) + '</b>';
-      $('#lista-teses').innerHTML = '<li class="vazio"><span class="rotulo">Sem resultados</span>' +
-        '<h2>Essa consulta não encontrou tese.</h2>' +
-        '<p>O protótipo carrega ' + TESES.length + ' teses de demonstração. Tente “atraso de voo”, ' +
-        '“horas extras” ou “ICMS”.</p></li>';
-      return;
-    }
-
-    $('#res-resumo').innerHTML = '<b>' + achados.length + '</b> tese' + (achados.length > 1 ? 's' : '') +
-      (q.trim() ? ' para <b>' + esc(q.trim()) + '</b>' : ' na base') +
-      ' · ' + num(achados.reduce(function (s, t) { return s + t.processos; }, 0)) + ' processos';
-    $('#lista-teses').innerHTML = achados.map(cartao).join('');
+    Api.buscar(q).then(function (achados) {
+      if (!achados.length) {
+        $('#res-resumo').innerHTML = 'Nenhum tema para <b>' + esc(q) + '</b>';
+        $('#lista-teses').innerHTML = '<li class="vazio"><span class="rotulo">Sem resultados</span>' +
+          '<h2>Essa consulta não encontrou tema julgado.</h2>' +
+          '<p>A base cobre um recorte do DataJud. Tente “dano moral”, ' +
+          '“IPTU” ou “execução fiscal”.</p></li>';
+        return;
+      }
+      $('#res-resumo').innerHTML = '<b>' + achados.length + '</b> tema' + (achados.length > 1 ? 's' : '') +
+        (q.trim() ? ' para <b>' + esc(q.trim()) + '</b>' : ' na base') +
+        ' · ' + num(achados.reduce(function (s, t) { return s + t.processos; }, 0)) + ' processos apurados';
+      $('#lista-teses').innerHTML = achados.map(cartao).join('');
+    }).catch(function (e) {
+      $('#res-resumo').innerHTML = 'Não foi possível consultar';
+      $('#lista-teses').innerHTML = '<li class="vazio"><span class="rotulo">Erro</span>' +
+        '<h2>A API não respondeu.</h2><p>' + esc(e.message) + '</p></li>';
+    });
   }
 
   /* ---- tela 3 ---- */
 
-  function citacoes(t) {
-    return '<ul class="citacoes">' + t.citacoes.map(function (c) {
-      return '<li><blockquote>' + esc(c.trecho) + '</blockquote>' +
+  /* Decisões reais. Sem blockquote: o DataJud publica metadado processual,
+     não o inteiro teor — inventar um trecho seria fabricar citação, que é
+     justamente o que faria um juiz descartar a ferramenta. No lugar do texto
+     vai o que temos de verdade, e o link para conferir na origem. */
+  function decisoes(t) {
+    if (!t.decisoes || !t.decisoes.length) {
+      return '<p class="vazio-secao">Nenhuma decisão com resultado registrado para este recorte.</p>';
+    }
+    return '<ul class="citacoes">' + t.decisoes.map(function (c) {
+      var fonte = c.fonte
+        ? '<a class="cit-link" href="' + esc(c.fonte.url) + '" target="_blank" rel="noopener noreferrer">' +
+          esc(c.fonte.rotulo) + '</a>'
+        : '<span class="cit-sem-link">Sem consulta pública mapeada</span>';
+      return '<li>' +
         '<div class="cit-fonte">' +
-        '<span class="marcador ' + c.resultado + '">' + (c.resultado === 'procedente' ? 'Favorável' : 'Contrária') + '</span>' +
+        '<span class="marcador ' + c.resultadoClasse + '">' + esc(c.resultadoTexto) + '</span>' +
         '<span>' + esc(c.tribunal) + ' · ' + esc(c.orgao) + '</span>' +
+        (c.classe ? '<span>' + esc(c.classe) + '</span>' : '') +
         '<span class="num">' + esc(c.numero) + '</span>' +
         '<span>' + esc(c.data) + '</span>' +
+        fonte +
         '</div></li>';
     }).join('') + '</ul>';
   }
 
-  function doutrinas(t) {
-    return '<ul class="doutrinas">' + t.doutrina.map(function (d) {
-      return '<li><cite><b>' + esc(d.autor) + '</b> · ' + esc(d.obra) + ' · ' + esc(d.ano) + '</cite>' +
-        '<p>' + esc(d.trecho) + '</p></li>';
-    }).join('') + '</ul>';
+  /* Colegialidade: como cada órgão do mesmo tribunal vem decidindo. */
+  function orgaos(t) {
+    if (!t.porOrgao || !t.porOrgao.length) return '';
+    return '<div class="trib-lista">' + t.porOrgao.map(function (o) {
+      var tt = o.favoravel + o.desfavoravel, p = pct(o.favoravel, tt);
+      var dica = esc(esc(o.orgao) + '<br><span class=&quot;k&quot;>favorável</span> <b>' + p + '%</b> · ' + tt + ' decisões');
+      return '<div class="trib-linha">' +
+        '<span class="trib-sigla">' + esc(o.sigla) + '</span>' +
+        '<div class="trib-barra">' +
+        '<span class="fav" data-seg style="flex:0 0 calc(' + p + '% - 1px)" data-dica="' + dica + '"></span>' +
+        '<span class="desf" data-seg style="flex:0 0 calc(' + (100 - p) + '% - 1px)" data-dica="' + dica + '"></span>' +
+        '</div>' +
+        '<span class="trib-n">' + tt + '</span>' +
+        '<span class="orgao-nome">' + esc(o.orgao) + '</span>' +
+        '</div>';
+    }).join('') + '</div>';
   }
 
   function montarTese(id) {
-    var t = TESES.filter(function (x) { return x.id === id; })[0];
-    if (!t) { location.hash = '#/'; return; }
+    $('#tese').innerHTML = '<p class="carregando">Carregando tema…</p>';
+    Api.tema(id).then(function (t) { desenharTese(t); }).catch(function (e) {
+      $('#tese').innerHTML = '<div class="vazio"><span class="rotulo">Erro</span>' +
+        '<h2>Não foi possível carregar este tema.</h2><p>' + esc(e.message) + '</p></div>';
+    });
+  }
 
+  function desenharTese(t) {
     var prosa = t.secoes.map(function (s) {
       var h = '<h2 id="s-' + s.id + '">' + esc(s.titulo) + '</h2>';
       h += s.paragrafos.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('');
@@ -298,8 +337,8 @@
         }).join('') + '</ul>';
       }
       if (s.grafico) h += graficoEvolucao(t) + graficoTribunais(t);
-      if (s.citacoes) h += citacoes(t);
-      if (s.doutrina) h += doutrinas(t);
+      if (s.orgaos) h += orgaos(t);
+      if (s.decisoes) h += decisoes(t);
       (s.subsecoes || []).forEach(function (sub) {
         h += '<h3 id="s-' + sub.id + '">' + esc(sub.titulo) + '</h3>';
         h += sub.paragrafos.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('');
@@ -418,12 +457,37 @@
     },
   ];
 
+  /* A abertura do chat é montada com os números REAIS do tema aberto. Antes
+     vinha pronta dos dados de demonstração; agora não existe roteiro fixo,
+     então ou ela nasce do dado ou não deve afirmar nada. */
+  function aberturaDoTema(t) {
+    var total = t.favoravel + t.desfavoravel;
+    var p = pct(t.favoravel, total);
+    return [{
+      de: 'ia',
+      paragrafos: [
+        'Este tema reúne ' + num(t.processos) + ' processos apurados em ' +
+        t.tribunais.length + (t.tribunais.length === 1 ? ' tribunal' : ' tribunais') + '. ' +
+        'Das ' + num(total) + ' decisões com resultado, ' + p + '% acolheram o pedido.',
+        'A nota ' + t.forca + '/100 combina concordância, volume, cobertura e recência — ' +
+        'os quatro componentes aparecem abertos no início da página.'
+      ],
+      fonte: 'Apurado sobre DataJud/CNJ'
+    }];
+  }
+
+  function sugestoesDoTema(t) {
+    var s = ['Como cada tribunal decide?', 'Onde há divergência?'];
+    if (t.tribunais.length > 1) s.push('Compare ' + t.tribunais[0] + ' e ' + t.tribunais[1]);
+    return s;
+  }
+
   function montarChat(t) {
     teseAtual = t;
-    var msgs = t ? t.chat : CHAT_ABERTURA;
-    $('#chat-contexto').textContent = t ? t.id + ' · ' + t.area : 'Nenhuma tese aberta';
+    var msgs = t ? aberturaDoTema(t) : CHAT_ABERTURA;
+    $('#chat-contexto').textContent = t ? 'Assunto ' + t.id : 'Nenhum tema aberto';
     $('#chat-fluxo').innerHTML = msgs.map(bolha).join('');
-    $('#chat-sugere').innerHTML = (t ? t.chatSugestoes : SUGESTOES_BUSCA.slice(0, 2)).map(function (s) {
+    $('#chat-sugere').innerHTML = (t ? sugestoesDoTema(t) : EXEMPLOS.slice(0, 2)).map(function (s) {
       return '<button type="button" data-pergunta="' + esc(s) + '">' + esc(s) + '</button>';
     }).join('');
   }

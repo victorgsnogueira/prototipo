@@ -889,3 +889,56 @@ a { color: inherit; }
   .capa-numeros dl { flex-direction: column; gap: 18px; }
   .trib-linha { grid-template-columns: 54px minmax(0, 1fr) 64px; gap: 10px; }
 }
+
+/* ======================================================================
+   MVP — elementos que só existem com dado real
+   ================================================================== */
+
+/* Link para a fonte oficial. É a peça de verificação do produto: o
+   profissional cita o que consegue conferir, então o link precisa ler como
+   ação, não como enfeite. */
+.cit-link {
+  font-family: var(--dado);
+  font-size: 11px;
+  color: var(--selo);
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+}
+.cit-link:hover { color: var(--carimbo); }
+
+.cit-sem-link {
+  font-family: var(--dado);
+  font-size: 11px;
+  color: var(--tinta-fraca);
+  font-style: italic;
+}
+
+/* Nome do órgão julgador na lista de colegialidade. Vem depois da barra
+   porque a comparação visual é o que importa; o nome é desempate. */
+.orgao-nome {
+  grid-column: 1 / -1;
+  font-family: var(--dado);
+  font-size: 10.5px;
+  color: var(--tinta-fraca);
+  padding-left: 2px;
+  margin-top: -2px;
+}
+.trib-lista .trib-linha:has(.orgao-nome) { row-gap: 2px; flex-wrap: wrap; }
+
+.vazio-secao,
+.carregando {
+  font-size: 16px;
+  color: var(--tinta-fraca);
+  font-style: italic;
+  padding: 8px 0;
+}
+
+/* Rótulo textual na coluna de números da capa (ex.: "DataJud/CNJ"), que não
+   é numeral e por isso não usa o corpo grande dos números. */
+.capa-numeros dd.dado-menor {
+  font-family: var(--dado);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: .02em;
+}
